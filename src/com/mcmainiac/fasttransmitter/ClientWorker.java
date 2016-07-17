@@ -33,25 +33,24 @@ public class ClientWorker implements Runnable {
 	private Auth auth;
 	private UUID id;
 	
-	public ClientWorker(Server server, UUID id, Socket clientSocket) {
-		Server.log("Recieved connection from " + clientSocket.getInetAddress().toString().substring(1) + ":" + clientSocket.getPort() + "...", 0, id.toString());
+	public ClientWorker(UUID id, Socket clientSocket) {
 		this.clientSocket = clientSocket;
+		this.id = id;
+		Server.log("Recieved connection from " + clientSocket.getInetAddress().toString().substring(1) + ":" + clientSocket.getPort(), 0, getDisplayName());
 		try {
 			this.reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 			this.writer = new PrintWriter(clientSocket.getOutputStream());
-		} catch (Exception e) {
-			Server.log("An error occured!", 2, getDisplayName());
+		} catch (IOException e) {
+			Server.log("An IOException occured!", 2, getDisplayName());
 			Server.log(e.getMessage(), 2, getDisplayName());
 			e.printStackTrace(Server.consoleOut);
-			try {
-				CloseConnection();
-			} catch (IOException ioe) {
-				Server.log("Error while trying to close the connection!", 2, getDisplayName());
+			try { CloseConnection(); }
+			catch (IOException ioe) {
+				Server.log("Fatal Error: IOException when trying to close client socket!", 2, getDisplayName());
 				ioe.printStackTrace(Server.consoleOut);
 			}
 		}
-		this.id = id;
-		server.addClientWorker(this);
+		Server.addClientWorker(this);
 	}
 
 	@Override
@@ -70,11 +69,21 @@ public class ClientWorker implements Runnable {
 				String response = null;
 				
 				switch (cmd) {
-				case "300": response = CheckConnection(); break; // 300: check connection
-				case "302": response = Username(split[1]); break; // 302: set user name
-				case "304": response = Password(split[1]); break; // 304: set user password
-				case "400": response = "400 Disconnected"; break; // 400: disconnect
-				default: response = "500 Command not implemented: " + cmd;
+					case "300": response = CheckConnection(); break; // 300: check connection
+					case "302": // 302: set user name
+						if (split.length >= 2)
+							response = Username(split[1]);
+						else
+							response = "305 No username given!";
+						break;
+					case "304": // 304: set user password
+						if (split.length >= 2)
+							response = Password(split[1]);
+						else
+							response = "306 No password given!";
+						break;
+					case "400": response = "400 Disconnected"; break; // 400: disconnect
+					default: response = "500 Command not implemented: " + cmd;
 				}
 
 				if (cmd.startsWith("400") || !clientSocket.isConnected()) { CloseConnection(); break; }
@@ -82,7 +91,12 @@ public class ClientWorker implements Runnable {
 			}
 		} catch (IOException e) {
 			Server.log("IOException occured!", 2, getDisplayName());
-			Server.log("Client disconnected!", 1, getDisplayName());
+		} finally {
+			try { CloseConnection(); }
+			catch (IOException e) {
+				Server.log("Fatal Error: IOException when trying to close client socket!", 2, getDisplayName());
+				e.printStackTrace(Server.consoleOut);
+			}
 		}
 	}
 	
@@ -91,7 +105,7 @@ public class ClientWorker implements Runnable {
 	}
 	
 	public String getDisplayName() {
-		return clientSocket.getInetAddress().toString().substring(1) + ":" + clientSocket.getPort();
+		return "[" + this.id.toString() + "] [" + clientSocket.getInetAddress().toString().substring(1) + ":" + clientSocket.getPort() + "]";
 	}
 	
 	// FaTP Commands
@@ -109,9 +123,9 @@ public class ClientWorker implements Runnable {
 			this.auth = new Auth();
 			auth.setUsername(username);
 			switch (auth.getState()) {
-			case OK: return "200 Logged in";
-			case PASSWORD_NEEDED: return "303 Username ok, password needed";
-			default: return "305 Authentication failed";
+				case OK: return "200 Logged in";
+				case PASSWORD_NEEDED: return "303 Username ok, password needed";
+				default: return "305 Authentication failed";
 			}
 		} else {
 			Server.log("501 Connection aborted!", 0, getDisplayName());
@@ -131,6 +145,9 @@ public class ClientWorker implements Runnable {
 	}
 	
 	private void CloseConnection() throws IOException {
+		Server.removeClientWorker(this.id);
+		writer.close();
+		reader.close();
 		clientSocket.close();
 		Server.log("Client disconnected!", 0, getDisplayName());
 	}

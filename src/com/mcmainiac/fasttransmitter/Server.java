@@ -41,8 +41,8 @@ public class Server {
 		HashMap<String, Object> arguments = new HashMap<String, Object>();
 		for (int i = 0; i < args.length; i++) {
 			switch (args[i]) {
-			case "-port": arguments.put("port", Integer.parseInt(args[i+1])); break;
-			default: continue;
+				case "-port": arguments.put("port", Integer.parseInt(args[i+1])); break;
+				default: continue;
 			}
 		}
 		
@@ -55,7 +55,7 @@ public class Server {
 	private Server(HashMap<String, Object> args) {
 		Integer port = (Integer) args.get("port");
 		try {
-			log("Opening socket on " + port + "...", 0);
+			log("Opening socket on " + port, 0);
 			server = new ServerSocket(port);
 		} catch(IOException e) {
 			log("Unable to bind port! Make sure no other services are running on port " + port, 2);
@@ -63,9 +63,10 @@ public class Server {
 		}
 		
 		try {
-			log("Waiting for clients to connect...", 0);
+			log("Waiting for clients to connect", 0);
+			Thread t;
 			while (!server.isClosed()) {
-				Thread t = new Thread(new ClientWorker(this, UUID.randomUUID(), server.accept()));
+				t = new Thread(new ClientWorker(UUID.randomUUID(), server.accept()));
 				t.start();
 			}
 		} catch (Exception e) {
@@ -86,31 +87,35 @@ public class Server {
 	}
 	
 	private static void log(String log, int level) {
-		String time = "[" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) + "] ";
+		String time = "[" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) + "]";
 		String pre;
 		switch (level) {
-		case 1: pre = "[WARNING] "; break;
-		case 2: pre = "[ERROR] "; break;
-		default: pre = "[INFO] "; break;
+			case 1: pre = "[WARNING]"; break;
+			case 2: pre = "[ERROR]"; break;
+			default: pre = "[INFO]"; break;
 		}
-		consoleOut.println(time + "[Server] " + pre + log);
+		consoleOut.println(time + " [Server] " + pre + " " + log);
 		consoleOut.flush();
 	}
 	
 	public static void log(String log, int level, String id) {
-		String time = "[" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) + "] ";
+		String time = "[" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) + "]";
 		String pre;
 		switch (level) {
-		case 1: pre = "[WARNING] "; break;
-		case 2: pre = "[ERROR] "; break;
-		default: pre = "[INFO] "; break;
+			case 1:  pre = "[WARNING]"; break;
+			case 2:  pre = "[ERROR]"; break;
+			default: pre = "[INFO]"; break;
 		}
-		consoleOut.println(time + "[" + id + "] " + pre + log);
+		consoleOut.println(time + " " + id + " " + pre + " " + log);
 		consoleOut.flush();
 	}
 	
-	public void addClientWorker(ClientWorker cw) {
+	public static void addClientWorker(ClientWorker cw) {
 		clients.put(cw.getId(), cw);
+	}
+	
+	public static void removeClientWorker(UUID id) {
+		clients.remove(id);
 	}
 	
 	private void exit(int code) {
