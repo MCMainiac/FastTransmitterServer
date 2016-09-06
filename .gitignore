@@ -65,3 +65,4 @@ $RECYCLE.BIN/
 # Eclipse Settings
 # ==========================
 /.settings
+/bin/
