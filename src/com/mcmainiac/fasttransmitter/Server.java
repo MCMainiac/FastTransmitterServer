@@ -27,8 +27,8 @@ import java.util.UUID;
 public class Server {
 	private ServerSocket server;
 	
-	private static HashMap<UUID, ClientWorker> clients = new HashMap<UUID, ClientWorker>();
-	public static PrintWriter consoleOut = new PrintWriter(System.out);
+	private static HashMap<UUID, ClientWorker> clients = new HashMap<>();
+	static PrintWriter consoleOut = new PrintWriter(System.out);
 	
 	public static void main(String[] args) {
 		log("=================================", 0);
@@ -42,7 +42,6 @@ public class Server {
 		for (int i = 0; i < args.length; i++) {
 			switch (args[i]) {
 				case "-port": arguments.put("port", Integer.parseInt(args[i+1])); break;
-				default: continue;
 			}
 		}
 		
@@ -70,7 +69,7 @@ public class Server {
 				t.start();
 			}
 		} catch (Exception e) {
-			log("An error occured: " + e.getMessage(), 2);
+			log("An error occurred: " + e.getMessage(), 2);
 			e.printStackTrace();
 			exit(-1);
 		} finally {
@@ -88,33 +87,33 @@ public class Server {
 	
 	private static void log(String log, int level) {
 		String time = "[" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) + "]";
-		String pre;
-		switch (level) {
-			case 1: pre = "[WARNING]"; break;
-			case 2: pre = "[ERROR]"; break;
-			default: pre = "[INFO]"; break;
-		}
+		String pre = getPrefixByLevel(level);
 		consoleOut.println(time + " [Server] " + pre + " " + log);
 		consoleOut.flush();
 	}
 	
-	public static void log(String log, int level, String id) {
+	static void log(String log, int level, String id) {
 		String time = "[" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) + "]";
+		String pre = getPrefixByLevel(level);
+		consoleOut.println(time + " " + id + " " + pre + " " + log);
+		consoleOut.flush();
+	}
+
+	private static String getPrefixByLevel(int level) {
 		String pre;
 		switch (level) {
 			case 1:  pre = "[WARNING]"; break;
 			case 2:  pre = "[ERROR]"; break;
 			default: pre = "[INFO]"; break;
 		}
-		consoleOut.println(time + " " + id + " " + pre + " " + log);
-		consoleOut.flush();
+		return pre;
 	}
 	
-	public static void addClientWorker(ClientWorker cw) {
+	static void addClientWorker(ClientWorker cw) {
 		clients.put(cw.getId(), cw);
 	}
 	
-	public static void removeClientWorker(UUID id) {
+	static void removeClientWorker(UUID id) {
 		clients.remove(id);
 	}
 	
