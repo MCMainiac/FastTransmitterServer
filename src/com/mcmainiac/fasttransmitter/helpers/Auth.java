@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Auth {
-	private static List<Auth> auths = new ArrayList<Auth>();
+	private static List<Auth> auth = new ArrayList<>();
 	
 	private String username;
 	@SuppressWarnings("unused")
@@ -29,23 +29,20 @@ public class Auth {
 	private AuthState state = AuthState.USERNAME_NEEDED;
 	
 	public Auth() {
-		auths.add(this);
+		auth.add(this);
 	}
 	
 	public AuthState getState() {
-		return this.state;
+		return state;
 	}
 	
-	public void setUsername(String username) {
-		for (Auth a : auths) {
-			if (a != this && a.getUsername() == username) return;
+	public void setUsername(String username) throws AlreadyLoggedInException {
+		for (Auth a : auth) {
+			if (a != this && a.username != null && a.username.equals(username))
+				throw new AlreadyLoggedInException("Username \"" + username + "\" is already logged in!");
 		}
 		this.username = username;
 		this.state = AuthState.PASSWORD_NEEDED;
-	}
-	
-	public String getUsername() {
-		return this.username;
 	}
 	
 	public void setPassword(String password) {
@@ -54,7 +51,16 @@ public class Auth {
 	}
 	
 	public boolean isAuthenticated() {
-		if (this.getState().equals(AuthState.OK)) return true;
-		else return false;
+		return state.equals(AuthState.OK);
+	}
+
+	public void logout() {
+		auth.remove(this);
+	}
+
+	public class AlreadyLoggedInException extends Throwable {
+		AlreadyLoggedInException(String s) {
+			super(s);
+		}
 	}
 }

@@ -16,14 +16,14 @@
  */
 package com.mcmainiac.fasttransmitter;
 
+import com.mcmainiac.fasttransmitter.helpers.Auth;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.UUID;
-
-import com.mcmainiac.fasttransmitter.helpers.Auth;
 
 public class ClientWorker implements Runnable {
 	private Socket clientSocket;
@@ -33,15 +33,15 @@ public class ClientWorker implements Runnable {
 	private Auth auth;
 	private UUID id;
 	
-	public ClientWorker(UUID id, Socket clientSocket) {
+	ClientWorker(UUID id, Socket clientSocket) {
 		this.clientSocket = clientSocket;
 		this.id = id;
-		Server.log("Recieved connection from " + clientSocket.getInetAddress().toString().substring(1) + ":" + clientSocket.getPort(), 0, getDisplayName());
+		Server.log("Received connection from " + clientSocket.getInetAddress().toString().substring(1) + ":" + clientSocket.getPort(), 0, getDisplayName());
 		try {
 			this.reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 			this.writer = new PrintWriter(clientSocket.getOutputStream());
 		} catch (IOException e) {
-			Server.log("An IOException occured!", 2, getDisplayName());
+			Server.log("An IOException occurred!", 2, getDisplayName());
 			Server.log(e.getMessage(), 2, getDisplayName());
 			e.printStackTrace(Server.consoleOut);
 			try { CloseConnection(); }
@@ -66,7 +66,7 @@ public class ClientWorker implements Runnable {
 				String[] split = line.split(" ");
 				String cmd = split[0];
 				
-				String response = null;
+				String response;
 				
 				switch (cmd) {
 					case "300": response = CheckConnection(); break; // 300: check connection
@@ -74,7 +74,7 @@ public class ClientWorker implements Runnable {
 						if (split.length >= 2)
 							response = Username(split[1]);
 						else
-							response = "305 No username given!";
+							response = "305 No username given! Authentication failed";
 						break;
 					case "304": // 304: set user password
 						if (split.length >= 2)
@@ -90,7 +90,7 @@ public class ClientWorker implements Runnable {
 				write(response);
 			}
 		} catch (IOException e) {
-			Server.log("IOException occured!", 2, getDisplayName());
+			Server.log("IOException occurred!", 2, getDisplayName());
 		} finally {
 			try { CloseConnection(); }
 			catch (IOException e) {
@@ -100,11 +100,11 @@ public class ClientWorker implements Runnable {
 		}
 	}
 	
-	public UUID getId() {
+	UUID getId() {
 		return this.id;
 	}
 	
-	public String getDisplayName() {
+	private String getDisplayName() {
 		return "[" + this.id.toString() + "] [" + clientSocket.getInetAddress().toString().substring(1) + ":" + clientSocket.getPort() + "]";
 	}
 	
@@ -121,7 +121,13 @@ public class ClientWorker implements Runnable {
 	private String Username(String username) throws IOException {
 		if (clientSocket.isConnected()) {
 			this.auth = new Auth();
-			auth.setUsername(username);
+
+			try {
+				auth.setUsername(username);
+			} catch (Auth.AlreadyLoggedInException e) {
+				return "305 Username already logged in. Authentication failed";
+			}
+
 			switch (auth.getState()) {
 				case OK: return "200 Logged in";
 				case PASSWORD_NEEDED: return "303 Username ok, password needed";
@@ -146,6 +152,7 @@ public class ClientWorker implements Runnable {
 	
 	private void CloseConnection() throws IOException {
 		Server.removeClientWorker(this.id);
+		auth.logout();
 		writer.close();
 		reader.close();
 		clientSocket.close();
